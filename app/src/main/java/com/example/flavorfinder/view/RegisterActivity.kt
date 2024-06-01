@@ -8,6 +8,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.flavorfinder.R
 import com.example.flavorfinder.databinding.ActivityRegisterBinding
+import com.example.flavorfinder.view.signin.SigninActivity
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
