@@ -7,6 +7,7 @@ import { readFileSync } from "fs";
 import db from "./config/firebase.config.js";
 import { badResponse, successResponse } from "./response.js";
 import { dateTimeNow } from "./time.js";
+import axios from "axios";
 
 const filename = fileURLToPath(import.meta.url);
 const filedirname = dirname(filename);
@@ -274,6 +275,7 @@ const logout = async (req, res) => {
   }
 };
 
+// Forget Password
 const forgetPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -290,4 +292,117 @@ const forgetPassword = async (req, res) => {
   }
 };
 
-export { login, register, logout, forgetPassword };
+// Create Bookmark
+const createBookmark = async (req, res) => {
+  try {
+    const { recipeId } = req.body;
+
+    if (recipeId.length === 0) {
+      const response = badResponse(400, "Recipe Id is required");
+      return res.status(400).json(response);
+    }
+
+    // Ambil data dari API Public
+    const recipe = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${recipeId}`);
+    const recipeData = recipe.data.meals ? recipe.data.meals[0] : null;
+
+    if (!recipeData) {
+      const response = badResponse(404, "Recipe not found");
+      return res.status(404).json(response);
+    }
+
+    // Membuat custom bookmark Id (gabungan user Id dan recipe Id)
+    const bookmarkId = `${req.uid}_${recipeData.idMeal}`;
+  
+    const bookmarkData = {
+      user_id: req.uid,
+      bookmark_id: bookmarkId,
+      time: dateTimeNow(),
+      recipe: {
+        ...recipeData
+      }
+    }
+
+    await db.collection('bookmarks').doc(bookmarkId).set(bookmarkData);
+    
+    const response = successResponse(
+      201,
+      "Recipe success added to bookmark",
+      bookmarkData,
+    );
+    res.status(201).json(response);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    const response = badResponse(
+      statusCode,
+      "Error while adding recipe to bookmark",
+      error.message
+    );
+    res.status(statusCode).json(response);
+  }
+};
+
+// Delete Bookmark
+const deleteBookmark = async (req, res) => {
+  try {
+    const bookmarkId = req.params.id;
+
+    if (!bookmarkId) {
+      const response = badResponse(400, "Bookmark Id is required");
+      return res.status(400).json(response);
+    }
+
+    const bookmarkRef = db.collection('bookmarks').doc(bookmarkId);
+    const bookmarkDoc = await bookmarkRef.get();
+
+    if (!bookmarkDoc.exists) {
+      const response = badResponse(404, "Bookmark not found");
+      return res.status(404).json(response);
+    }
+
+    await bookmarkRef.delete(); 
+    const response = successResponse(
+      200,
+      "Delete recipe from bookmark successfully",
+    );
+    res.status(200).json(response);
+  } catch (error) {
+    const response = badResponse(500, "Error while deleting recipe from bookmark");
+    res.status(500).json(response);
+  }
+};
+
+// Get Bookmark for a user
+const getBookmark = async (req, res) => {
+  try {
+    const bookmarksSnapshot = await db.collection('bookmarks').where('user_id', '==', req.uid).get();
+
+    if (bookmarksSnapshot.empty) {
+      const response = badResponse(404, "No bookmarks found");
+      return res.status(404).json(response);
+    }
+
+    const bookmarks = bookmarksSnapshot.docs.map(doc => doc.data());
+
+    const response = successResponse(
+      200,
+      "Bookmarks retrieved successfully",
+      bookmarks
+    );
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error getting bookmarks:', error.message);
+    const response = badResponse(500, "Error while getting bookmark");
+    res.status(500).json(response);
+  }
+};
+
+export {
+  login,
+  register,
+  logout,
+  forgetPassword,
+  createBookmark,
+  deleteBookmark,
+  getBookmark
+};

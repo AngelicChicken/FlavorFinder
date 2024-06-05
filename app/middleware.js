@@ -12,7 +12,7 @@ const authMiddleware = async (req, res, next) => {
 
     const token = authorization.split('Bearer ')[1];
 
-    // Periksa apakah renter sudah logout
+    // Periksa apakah user sudah logout
     const tokenSnapshot = db.collection('tokens').doc(token);
     const tokenRef = await tokenSnapshot.get();
     if (tokenRef.exists && tokenRef.data().invalid) {
@@ -35,4 +35,21 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-export { authMiddleware };
+// Verify Token
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(403).send('Unauthorized');
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.uid = decodedToken.uid;
+    next();
+  } catch (error) {
+    res.status(403).send('Unauthorized');
+  }
+};
+
+export { authMiddleware, verifyToken };
