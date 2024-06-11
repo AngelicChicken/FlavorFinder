@@ -35,21 +35,4 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Verify Token
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(403).send('Unauthorized');
-  }
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.uid = decodedToken.uid;
-    next();
-  } catch (error) {
-    res.status(403).send('Unauthorized');
-  }
-};
-
-export { authMiddleware, verifyToken };
+export default authMiddleware;

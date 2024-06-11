@@ -16,6 +16,7 @@ const credentials = JSON.parse(readFileSync(firebaseAdminCredential, 'utf8'));
 admin.initializeApp({
   credential: admin.credential.cert(credentials),
   databaseURL: config.databaseURL,
+  storageBucket: config.storageBucket
 });
 
 const db = admin.firestore();

@@ -8,6 +8,9 @@ import db from "./config/firebase.config.js";
 import { badResponse, successResponse } from "./response.js";
 import { dateTimeNow } from "./time.js";
 import axios from "axios";
+import path from "path";
+
+const bucket = admin.storage().bucket();
 
 const filename = fileURLToPath(import.meta.url);
 const filedirname = dirname(filename);
@@ -323,7 +326,7 @@ const createBookmark = async (req, res) => {
       }
     }
 
-    await db.collection('bookmarks').doc(bookmarkId).set(bookmarkData);
+    await db.collection("bookmarks").doc(bookmarkId).set(bookmarkData);
     
     const response = successResponse(
       201,
@@ -352,7 +355,7 @@ const deleteBookmark = async (req, res) => {
       return res.status(400).json(response);
     }
 
-    const bookmarkRef = db.collection('bookmarks').doc(bookmarkId);
+    const bookmarkRef = db.collection("bookmarks").doc(bookmarkId);
     const bookmarkDoc = await bookmarkRef.get();
 
     if (!bookmarkDoc.exists) {
@@ -372,11 +375,10 @@ const deleteBookmark = async (req, res) => {
   }
 };
 
-// Get Bookmark for a user
+// Get Bookmark for a User
 const getBookmark = async (req, res) => {
   try {
-    const bookmarksSnapshot = await db.collection('bookmarks').where('user_id', '==', req.uid).get();
-
+    const bookmarksSnapshot = await db.collection("bookmarks").where("user_id", "==", req.user.user_id).get();
     if (bookmarksSnapshot.empty) {
       const response = badResponse(404, "No bookmarks found");
       return res.status(404).json(response);
@@ -391,11 +393,107 @@ const getBookmark = async (req, res) => {
     );
     res.status(200).json(response);
   } catch (error) {
-    console.error('Error getting bookmarks:', error.message);
+    console.error("Error getting bookmarks:", error.message);
     const response = badResponse(500, "Error while getting bookmark");
     res.status(500).json(response);
   }
 };
+
+// Get User Profile
+const getUser = async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const userDoc = await db.collection("users").doc(userId).get();
+
+    if (!userDoc.exists) {
+      const response = badResponse(404, "No user found");
+      return res.status(404).json(response);
+    }
+
+    const response = successResponse(
+      200,
+      "User profile retrieved successfully",
+      userDoc.data()
+    );
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error getting user profile:", error.message);
+    const response = badResponse(500, "Error while getting user profile");
+    res.status(500).json(response);
+  }
+}
+
+// Update User Profile
+const updateUser = async (req, res) => {
+  const userId = req.params.id;
+  const { email, username } = req.body;
+  let imgUrl;
+
+  try {
+    const userDoc = db.collection("users").doc(userId);
+    const userSnapshot = await userDoc.get();
+
+    if (!userSnapshot.exists) {
+      const response = badResponse(404, "No user found");
+      return res.status(404).json(response);
+    }
+
+    if (req.file) {
+      const fileName = `${userId}_${dateTimeNow()}${path.extname(req.file.originalname)}`
+      const file = bucket.file(fileName);
+
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: req.file.mimetype
+        }
+      });
+
+      stream.on("error", (err) => {
+        console.log(err);
+        const response = badResponse(500, "Internal server error");
+        res.status(500).json(response);
+      });
+
+      stream.on("finish", async () => {
+        await file.makePublic();
+        imgUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+        const updateData = { email, username };
+        if (imgUrl) updateData.imgUrl = imgUrl;
+
+        await userDoc.update(updateData);
+        const response = successResponse(
+          200,
+          "User profile updated successfully",
+          updateData
+        );
+        res.status(200).json(response);
+      });
+
+      stream.end(req.file.buffer);
+    } else {
+      const updateData = { email, username };
+      await userDoc.update(updateData);
+      const response = successResponse(
+        200,
+        "User profile updated successfully",
+        updateData
+      );
+      res.status(200).json(response);
+    }
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    const response = badResponse(
+      statusCode,
+      "Error while updating user profile",
+      error.message
+    );
+    res.status(statusCode).json(response);
+    console.log(error);
+  }
+}
+
 
 export {
   login,
@@ -404,5 +502,7 @@ export {
   forgetPassword,
   createBookmark,
   deleteBookmark,
-  getBookmark
+  getBookmark, 
+  getUser,
+  updateUser
 };

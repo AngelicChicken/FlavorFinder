@@ -2,5 +2,6 @@
   "projectId": "flavor-finder-capstone",
   "firebaseAdminCredential": "firebaseAdmin.json",
   "firebaseConfigCredentail": "firebaseConfig.json",
-  "databaseURL": "https://flavor-finder-capstone.firebaseio.com"
+  "databaseURL": "https://flavor-finder-capstone.firebaseio.com",
+  "storageBucket": "gs://flavor-finder-capstone.appspot.com"
 }
