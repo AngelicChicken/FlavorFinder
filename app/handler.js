@@ -9,6 +9,7 @@ import { badResponse, successResponse } from "./response.js";
 import { dateTimeNow } from "./time.js";
 import axios from "axios";
 import path from "path";
+import { error, timeStamp } from "console";
 
 const bucket = admin.storage().bucket();
 
@@ -418,11 +419,10 @@ const getUser = async (req, res) => {
     );
     res.status(200).json(response);
   } catch (error) {
-    console.error("Error getting user profile:", error.message);
     const response = badResponse(500, "Error while getting user profile");
     res.status(500).json(response);
   }
-}
+};
 
 // Update User Profile
 const updateUser = async (req, res) => {
@@ -490,10 +490,128 @@ const updateUser = async (req, res) => {
       error.message
     );
     res.status(statusCode).json(response);
-    console.log(error);
   }
-}
+};
 
+// Create comment
+const createComment = async (req, res) => {
+  const { recipe_id } = req.params;
+  const { user_id, comment_text } = req.body;
+
+  if (!user_id || !comment_text) {
+    const response = badResponse(400, "Missing required fields");
+    return res.status(400).json(response);
+  }
+
+  try {
+    const newCommentRef = db.collection('comments').doc();
+    const newComment = {
+      comment_id: newCommentRef.id,
+      recipe_id,
+      user_id,
+      comment_text,
+      created_at: dateTimeNow(),
+      updated_at: ""
+    };
+
+    await newCommentRef.set(newComment);
+
+    const response = successResponse(
+      200,
+      "Comment added successfully",
+      newComment
+    );
+    res.status(201).json(response);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    const response = badResponse(
+      statusCode,
+      "Error while adding comment",
+      error.message
+    );
+    res.status(statusCode).json(response);
+  }
+};
+
+// Get all comments
+const getComments = async (req, res) => {
+  const { recipe_id } = req.params;
+
+  try {
+    const commentsSnapshot = await db.collection("comments").where("recipe_id", "==", recipe_id).get();
+
+    if (commentsSnapshot.empty) {
+      const response = badResponse(404, "No comments found");
+      return res.status(404).json(response);
+    }
+
+    const comments = commentsSnapshot.docs.map(doc => ({ ...doc.data() }));
+    const response = successResponse(
+      200,
+      "Comments retrieved successfully",
+      comments
+    );
+    res.status(200).json(response);
+  } catch (error) {
+    const response = badResponse(500, "Error while getting comments");
+    res.status(500).json(response);
+  }
+};
+
+// Update comment
+const updateComment = async (req, res) => {
+  const { comment_id } = req.params;
+  const { comment_text } = req.body;
+
+  if (!comment_text) {
+    const response = badResponse(400, "Missing comment text fields");
+    return res.status(400).json(response);
+  }
+
+  try {
+    const commentDoc = db.collection('comments').doc(comment_id);
+
+    const updateData = {
+      comment_text,
+      comment_id,
+      updated_at: dateTimeNow()
+    }
+    await commentDoc.update(updateData);
+    const response = successResponse(
+      200,
+      "Comment updated successfully",
+      updateData
+    );
+    res.status(200).json(response);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    const response = badResponse(
+      statusCode,
+      "Error while updating comment",
+      error.message
+    );
+    res.status(statusCode).json(response);
+  }
+};
+
+
+// Delete comment
+const deleteComment = async (req, res) => {
+  const { comment_id } = req.params;
+
+  try {
+    const commentDoc = db.collection('comments').doc(comment_id);
+    await commentDoc.delete();
+    const response = successResponse(
+      200,
+      "Comment deleted successfully",
+    );
+    res.status(200).json(response);
+  } catch (error) {
+    const response = badResponse(500, "Error while deleting comment");
+    res.status(500).json(response);
+  }
+};
 
 export {
   login,
@@ -504,5 +622,9 @@ export {
   deleteBookmark,
   getBookmark, 
   getUser,
-  updateUser
+  updateUser,
+  createComment,
+  getComments,
+  updateComment,
+  deleteComment
 };
