@@ -466,7 +466,7 @@ const updateUser = async (req, res) => {
         const response = successResponse(
           200,
           "User profile updated successfully",
-          updateData
+          (await userDoc.get()).data()
         );
         res.status(200).json(response);
       });
@@ -478,7 +478,7 @@ const updateUser = async (req, res) => {
       const response = successResponse(
         200,
         "User profile updated successfully",
-        updateData
+        (await userDoc.get()).data()
       );
       res.status(200).json(response);
     }
