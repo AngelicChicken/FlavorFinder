@@ -427,7 +427,7 @@ const getUser = async (req, res) => {
 // Update User Profile
 const updateUser = async (req, res) => {
   const userId = req.params.id;
-  const { email, username } = req.body;
+  const { username } = req.body;
   let imgUrl;
 
   try {
@@ -459,7 +459,7 @@ const updateUser = async (req, res) => {
         await file.makePublic();
         imgUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
 
-        const updateData = { email, username };
+        const updateData = { username };
         if (imgUrl) updateData.imgUrl = imgUrl;
 
         await userDoc.update(updateData);
@@ -473,7 +473,7 @@ const updateUser = async (req, res) => {
 
       stream.end(req.file.buffer);
     } else {
-      const updateData = { email, username };
+      const updateData = { username };
       await userDoc.update(updateData);
       const response = successResponse(
         200,
