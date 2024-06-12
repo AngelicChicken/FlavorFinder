@@ -316,10 +316,10 @@ const createBookmark = async (req, res) => {
     }
 
     // Membuat custom bookmark Id (gabungan user Id dan recipe Id)
-    const bookmarkId = `${req.uid}_${recipeData.idMeal}`;
+    const bookmarkId = `${req.user.user_id}_${recipeData.idMeal}`;
   
     const bookmarkData = {
-      user_id: req.uid,
+      user_id: req.user.user_id,
       bookmark_id: bookmarkId,
       time: dateTimeNow(),
       recipe: {
@@ -343,6 +343,7 @@ const createBookmark = async (req, res) => {
       error.message
     );
     res.status(statusCode).json(response);
+    console.log(error);
   }
 };
 
@@ -439,6 +440,12 @@ const updateUser = async (req, res) => {
       return res.status(404).json(response);
     }
 
+    const updateData = {};
+
+    if (username) {
+      updateData.username = username;
+    }
+
     if (req.file) {
       const fileName = `${userId}_${dateTimeNow()}${path.extname(req.file.originalname)}`
       const file = bucket.file(fileName);
@@ -458,9 +465,7 @@ const updateUser = async (req, res) => {
       stream.on("finish", async () => {
         await file.makePublic();
         imgUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-
-        const updateData = { username };
-        if (imgUrl) updateData.imgUrl = imgUrl;
+        updateData.imgUrl = imgUrl;
 
         await userDoc.update(updateData);
         const response = successResponse(
@@ -473,14 +478,18 @@ const updateUser = async (req, res) => {
 
       stream.end(req.file.buffer);
     } else {
-      const updateData = { username };
-      await userDoc.update(updateData);
-      const response = successResponse(
-        200,
-        "User profile updated successfully",
-        (await userDoc.get()).data()
-      );
-      res.status(200).json(response);
+      if (Object.keys(updateData).length > 0) {
+        await userDoc.update(updateData);
+        const response = successResponse(
+          200,
+          "User profile updated successfully",
+          (await userDoc.get()).data()
+        );
+        res.status(200).json(response);
+      } else {
+        const response = badResponse(400, "No data provided to update");
+        res.status(400).json(response);
+      }
     }
   } catch (error) {
     const statusCode = error.statusCode || 500;
