@@ -447,6 +447,12 @@ const updateUser = async (req, res) => {
     }
 
     if (req.file) {
+
+      if (req.file.size > 15 * 1024 * 1024) { // 15 MB limit
+        const response = badResponse(400, "Ukuran file melebihi batas maksimum (15MB)");
+        return res.status(400).json(response);
+      }
+
       const fileName = `${userId}_${dateTimeNow()}${path.extname(req.file.originalname)}`
       const file = bucket.file(fileName);
 
@@ -547,7 +553,10 @@ const getComments = async (req, res) => {
   const { recipe_id } = req.params;
 
   try {
-    const commentsSnapshot = await db.collection("comments").where("recipe_id", "==", recipe_id).get();
+    const commentsSnapshot = await db.collection("comments")
+                                    .where("recipe_id", "==", recipe_id)
+                                    .orderBy("created_at", "desc")
+                                    .get();
 
     if (commentsSnapshot.empty) {
       const response = badResponse(404, "No comments found");
@@ -564,6 +573,7 @@ const getComments = async (req, res) => {
   } catch (error) {
     const response = badResponse(500, "Error while getting comments");
     res.status(500).json(response);
+    console.log(error);
   }
 };
 
